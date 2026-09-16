@@ -238,72 +238,84 @@ Run the test suite:
 pytest -v
 ```
 
-**Current Test Status:**
-```text
-36 passed in 1.73s
-```
-
 ---
 
-## Example Usage & Outputs
+## Verified Example Test Outputs
 
-### Example 1: Code with SQL Injection (`REJECTED`)
+Below are three actual outputs captured empirically by executing the test suite against the codebase:
 
-#### Source Input (`vulnerable.py`)
-```python
-def get_user(cursor, user_id):
-    query = f"SELECT * FROM users WHERE id = {user_id}"
-    cursor.execute(query)
-```
+### 1. SQL Injection Detection (`test_detects_genuine_sql_injection`)
 
-#### Review Result
-- **Static Findings**: Line 3 - SQL Injection (`Severity.HIGH`)
-- **Final Decision**: **`REJECTED`**
-
----
-
-### Example 2: Code with Safe Parameterized SQL (`APPROVED`)
-
-#### Source Input (`safe.py`)
-```python
-def get_user(cursor, user_id):
-    query = "SELECT * FROM users WHERE id = ?"
-    cursor.execute(query, (user_id,))
-```
-
-#### Review Result
-- **Static Findings**: None
-- **LLM Findings**: None
-- **Final Decision**: **`APPROVED`**
-
----
-
-### Example 3: End-to-End CLI Pipeline JSON Output (`APPROVED`)
-
-#### Command Invocation
-```powershell
-python -m app.main path/to/clean_sample.py
-```
-
-#### Actual Structured JSON Output
+#### Executed Test Object Output (`AnalysisResult`)
 ```json
 {
-  "path": "path/to/clean_sample.py",
-  "files_reviewed": 1,
-  "results": [
+  "file": "app.py",
+  "findings": [
     {
-      "state": "COMPLETE",
-      "iterations": 1,
-      "revisited": false,
-      "context_requested": false,
-      "review": {
-        "decision": "APPROVED",
-        "findings": [],
-        "analysis_errors": [],
-        "llm_summary": "No meaningful security, correctness, or reliability concerns were identified in the source file."
-      }
+      "file": "app.py",
+      "line": 3,
+      "finding": "SQL Injection",
+      "severity": "HIGH",
+      "evidence": "A SQL execution call receives a query containing dynamically constructed SQL. User-controlled or runtime values may be inserted directly into the query instead of being passed as parameters.",
+      "recommendation": "Use parameterized queries and pass runtime values through the database driver's parameter mechanism.",
+      "decision": "REJECTED"
     }
-  ]
+  ],
+  "analysis_errors": []
+}
+```
+
+---
+
+### 2. Conflicting Static vs LLM Result (`test_static_high_overrides_llm_low`)
+
+#### Executed Test Object Output (`ReviewResult`)
+```json
+{
+  "decision": "REJECTED",
+  "findings": [
+    {
+      "file": "app.py",
+      "line": 10,
+      "finding": "SQL Injection",
+      "severity": "HIGH",
+      "evidence": "Dynamic SQL",
+      "recommendation": "Use parameters",
+      "decision": "REJECTED"
+    }
+  ],
+  "analysis_errors": [],
+  "llm_summary": "No major issues found in code context."
+}
+```
+
+---
+
+### 3. Agent Revisit & Iteration Termination (`test_agent_revisits_when_llm_finds_contextual_issue`)
+
+#### Executed Test Object Output (`AgentReviewResult`)
+```json
+{
+  "state": "COMPLETE",
+  "iterations": 2,
+  "revisited": true,
+  "context_requested": true,
+  "review": {
+    "decision": "REVIEW_REQUIRED",
+    "findings": [
+      {
+        "file": "app.py",
+        "line": 5,
+        "finding": "Contextual logic bug",
+        "severity": "MEDIUM",
+        "evidence": "Unchecked input flow across functions",
+        "recommendation": "Add validation",
+        "decision": "REVIEW_REQUIRED"
+      }
+    ],
+    "analysis_errors": [],
+    "llm_summary": "Potential contextual issue requiring context."
+  }
 }
 ```
 

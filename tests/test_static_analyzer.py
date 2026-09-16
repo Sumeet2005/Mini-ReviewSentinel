@@ -239,3 +239,18 @@ cursor.execute(query)
     assert len(second_result.findings) == 1
     assert first_result.findings[0].finding == "SQL Injection"
     assert second_result.findings[0].finding == "SQL Injection"
+
+
+def test_secret_variable_from_env_var_is_not_reported():
+    source = """
+import os
+API_KEY = os.getenv("API_KEY")
+DATABASE_PASSWORD = os.environ.get("DB_PASS")
+    """
+
+    result = StaticAnalyzer().analyze(
+        source,
+        filename="config.py",
+    )
+
+    assert result.findings == []
